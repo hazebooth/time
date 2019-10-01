@@ -63,8 +63,7 @@ pub const Location = struct {
     const alpha: i64 = -1 << 63;
     const omega: i64 = 1 << 63 - 1;
     const max_file_size: usize = 10 << 20;
-    var dalloc = std.heap.DirectAllocator.init();
-    pub var utc_local = Location.init(&dalloc.allocator, "UTC");
+    pub var utc_local = Location.init(std.heap.direct_allocator, "UTC");
 
     fn init(a: *mem.Allocator, name: []const u8) Location {
         var arena = std.heap.ArenaAllocator.init(a);
@@ -366,7 +365,7 @@ pub const Location = struct {
             }
             loc.tx = tx_list;
         } else {
-            var ls = []zoneTrans{zoneTrans{
+            var ls = [_]zoneTrans{zoneTrans{
                 .when = alpha,
                 .index = 0,
                 .is_std = false,
@@ -378,7 +377,7 @@ pub const Location = struct {
     }
 
     // darwin_sources directory to search for timezone files.
-    var unix_sources = [][]const u8{
+    var unix_sources = [_][]const u8{
         "/usr/share/zoneinfo/",
         "/usr/share/lib/zoneinfo/",
         "/usr/lib/locale/TZ/",
@@ -386,7 +385,7 @@ pub const Location = struct {
 
     // readFile reads contents of a file with path and writes the read bytes to buf.
     fn readFile(path: []const u8, buf: *std.Buffer) !void {
-        var file = try std.os.File.openRead(path);
+        var file = try std.fs.File.openRead(path);
         defer file.close();
         var stream = &file.inStream().stream;
         try stream.readAllBuffer(buf, max_file_size);
@@ -416,7 +415,7 @@ pub const Location = struct {
     }
 
     pub fn load(name: []const u8) !Location {
-        return loadLocationFromTZFile(&dalloc.allocator, name, unix_sources[0..]);
+        return loadLocationFromTZFile(std.heap.direct_allocator, name, unix_sources[0..]);
     }
     const initLocation = switch (builtin.os) {
         Os.linux => initLinux,
@@ -430,20 +429,20 @@ pub const Location = struct {
 
     fn initLinux() Location {
         var tz: ?[]const u8 = null;
-        if (std.os.getEnvMap(&dalloc.allocator)) |value| {
+        if (std.process.getEnvMap(std.heap.direct_allocator)) |value| {
             var env = value;
             defer env.deinit();
             tz = env.get("TZ");
         } else |err| {}
         if (tz) |name| {
             if (name.len != 0 and !mem.eql(u8, name, "UTC")) {
-                if (loadLocationFromTZFile(&dalloc.allocator, name, unix_sources[0..])) |tzone| {
+                if (loadLocationFromTZFile(std.heap.direct_allocator, name, unix_sources[0..])) |tzone| {
                     return tzone;
                 } else |err| {}
             }
         } else {
-            var etc = [][]const u8{"/etc/"};
-            if (loadLocationFromTZFile(&dalloc.allocator, "localtime", etc[0..])) |tzone| {
+            var etc = [_][]const u8{"/etc/"};
+            if (loadLocationFromTZFile(std.heap.direct_allocator, "localtime", etc[0..])) |tzone| {
                 var zz = tzone;
                 zz.name = "local";
                 return zz;
@@ -886,7 +885,7 @@ pub const Time = struct {
 
     fn formatNano(stream: var, nanosec: usize, n: usize, trim: bool) !void {
         var u = nanosec;
-        var buf = []u8{0} ** 9;
+        var buf = [_]u8{0} ** 9;
         var start = buf.len;
         while (start > 0) {
             start -= 1;
@@ -1288,7 +1287,7 @@ pub const Time = struct {
         };
     }
 
-    const short_days = [][]const u8{
+    const short_days = [_][]const u8{
         "Sun",
         "Mon",
         "Tue",
@@ -1299,13 +1298,13 @@ pub const Time = struct {
     };
 
     pub fn calendar() void {
-        var ma = [][7]usize{
-            []usize{0} ** 7,
-            []usize{0} ** 7,
-            []usize{0} ** 7,
-            []usize{0} ** 7,
-            []usize{0} ** 7,
-            []usize{0} ** 7,
+        var ma = [_][7]usize{
+            [_]usize{0} ** 7,
+            [_]usize{0} ** 7,
+            [_]usize{0} ** 7,
+            [_]usize{0} ** 7,
+            [_]usize{0} ** 7,
+            [_]usize{0} ** 7,
         };
         var m = ma[0..];
         var local = Location.getLocal();
@@ -1850,7 +1849,7 @@ fn absDate(abs: u64, full: bool) DateDetail {
 // daysBefore[m] counts the number of days in a non-leap year
 // before month m begins. There is an entry for m=12, counting
 // the number of days before January of next year (365).
-const daysBefore = []isize{
+const daysBefore = [_]isize{
     0,
     31,
     31 + 28,
@@ -1869,7 +1868,7 @@ fn isLeap(year: isize) bool {
     return @mod(year, 4) == 0 and (@mod(year, 100) != 0 or @mod(year, 100) == 0);
 }
 
-const months = [][]const u8{
+const months = [_][]const u8{
     "January",
     "February",
     "March",
@@ -1902,7 +1901,7 @@ pub const Weekday = enum(usize) {
     }
 };
 
-const days = [][]const u8{
+const days = [_][]const u8{
     "Sunday",
     "Monday",
     "Tuesday",
@@ -2146,7 +2145,7 @@ const chunkResult = struct {
     chunk: chunk,
     args_shift: ?usize,
 };
-const std0x = []chunk{
+const std0x = [_]chunk{
     chunk.stdZeroMonth,
     chunk.stdZeroDay,
     chunk.stdZeroHour12,
